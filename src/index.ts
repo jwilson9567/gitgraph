@@ -220,6 +220,8 @@ const better_traversal = document.getElementById("better-traversal-section") as 
 
 const updated_traversal = document.getElementById("updated-traversal-section") as HTMLInputElement;
 
+const bottom_top_section = document.getElementById("top-bottom-section") as HTMLInputElement;
+
 if (modeSelect) {
   modeSelect.addEventListener("change", () => {
     const mode = modeSelect.value;
@@ -228,6 +230,7 @@ if (modeSelect) {
     start_node_distance_section.style.display = "none";
     better_traversal.style.display = "none";
     updated_traversal.style.display = "none";
+    bottom_top_section.style.display = "none";
 
     if (mode === "single-node")
     {
@@ -244,6 +247,10 @@ if (modeSelect) {
     else if (mode === "updated-traversal-visual")
     {
       updated_traversal.style.display = "block";
+    }
+    else if (mode === "top-bottom-traversal-visual")
+    {
+      bottom_top_section.style.display = "block";
     }
 });
 }
@@ -384,14 +391,20 @@ console.log("Data set used: ", dataSelect.value);
     }
 
     function resetGraph(graph: Graph) {
-        // Reset the position, size, and color of all nodes in the graph
-        graph.forEachNode((node) => {
-          graph.setNodeAttribute(node, "x", 0);
-          graph.setNodeAttribute(node, "y", 0);
-          graph.setNodeAttribute(node, "size", 3);
-          graph.setNodeAttribute(node, "color", "#666");
-        });
-      }
+      graph.forEachNode((node) => {
+        graph.setNodeAttribute(node, "x", 0);
+        graph.setNodeAttribute(node, "y", 0);
+        graph.setNodeAttribute(node, "size", 3);
+        graph.setNodeAttribute(node, "color", "#666");
+      });
+    }
+    
+    function clearGraph(graph: Graph) {
+      graph.clear();
+    }
+    
+
+    
 
     // Define an array of colors for the rainbow effect
 /*const colors = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"];
@@ -1307,7 +1320,337 @@ if (updated_traversal_input && updated_distance_input) {
   });
 }
 
+// TOP BOTTOM SECTION NODE VISUALIZATION
+const top_bottom_input = document.getElementById("top-bottom-input") as HTMLInputElement;
+const bottom_top_amount_input = document.getElementById("bottom-top-number-input") as HTMLInputElement;
+const top_bottom_select = document.getElementById("top-bottom-select") as HTMLSelectElement;
 
+const bottom_top_graph = new Graph();
+let bottom_top_renderer: Sigma | null;
+const bottom_top_container = document.getElementById("bottom-top-container") as HTMLElement;
+
+//Event listener to check to see the option selected. 
+document.getElementById('data-select')?.addEventListener('change', (event) => {
+  selectedOption = (event.target as HTMLSelectElement).value; // saving the value of the selected option
+
+  // Reset the input fields
+  top_bottom_input.value = '';
+  bottom_top_amount_input.value = '';
+
+  // Clear the graph
+  bottom_top_graph.clear();
+
+  // Kill the renderer if it exists
+  if (bottom_top_renderer != null)
+  {
+    bottom_top_renderer.kill();
+    bottom_top_renderer = null;
+  }
+
+});
+
+// This is the best traversal that shows meaningful nodes for now.
+let bt_relationships: { [key: string]: any }; //
+let bt_selectedNode: string | undefined = undefined; //
+let node_amount: string | null = null;
+
+if (top_bottom_input && bottom_top_amount_input && top_bottom_select) {
+  bottom_top_amount_input.addEventListener("keydown", async (event) => { //make the event listener async
+    if (event.key === "Enter") {
+
+      // Clear the graph
+      bottom_top_graph.clear();
+
+      // Kill the renderer if it exists
+      if (bottom_top_renderer != null)
+      {
+        bottom_top_renderer.kill();
+      }
+
+      let amountValue = parseFloat(bottom_top_amount_input.value);
+
+      if (isNaN(amountValue)) {
+          console.error("Invalid node amount");
+          return;
+      }
+
+      let startNode = top_bottom_input.value; // Get the start node value from the input field
+      let topOrBottom = top_bottom_select.value; // Get the selected option (Top or Bottom)
+
+      console.log(selectedOption);
+      console.log(startNode);
+      console.log(topOrBottom);
+      console.log(amountValue);
+
+      //http://127.0.0.1:5000/different.json -- for local hosting
+      //http://jwilson9567.pythonanywhere.com -- this is for online hosting
+      //this needs to be fixed to work with both CAPEC and CWE datasets still
+      //TODO the previous graph is not being killed properly
+      let response = await fetch('https://jwilson9567.pythonanywhere.com/topbottom.json', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `data_type=${selectedOption}&start_node=${startNode}&node_amount=${amountValue}&top_or_bottom=${topOrBottom}`,
+      });
+
+      if (!response.ok) 
+      {
+        console.error("Fetch request failed:", response.status, response.statusText);
+        return;
+      }
+
+      let data = await response.json();
+      console.log(data);
+      // 'data' is now a JavaScript object that you can work with
+      parsed_data = data;
+
+      const clusterColors = {
+        '7PK': '#1f77b4',  // Muted Blue
+        'CERT': '#ff7f0e',  // Safety Orange
+        'CISQ': '#2ca02c',  // Cooked Asparagus Green
+        'Comprehensive Categorization': '#d62728',  // Brick Red
+        'ICS': '#9467bd',  // Muted Purple
+        'OWASP': '#8c564b',  // Chestnut Brown
+        'SEI CERT': '#e377c2',  // Raspberry Yogurt Pink
+        'SFP': '#bcbd22',  // Curry Yellow-Green
+        'The CERT': '#17becf',  // Blue-Teal
+        'Uncategorized': '#7f7f7f'  // Middle Gray
+      };      
+
+      // Reading and adding the nodes into the single_node_graph_view
+      for (const node of Object.keys(parsed_data)) {
+        console.log(`Node: ${node}`);
+  
+        if (parsed_data[node].clusters) {
+          console.log(`Clusters: ${parsed_data[node].clusters}`);
+        } else {
+          console.log('Clusters: undefined');
+        }
+
+        // Get the color of the first cluster
+        const firstCluster = parsed_data[node].clusters[0] as keyof typeof clusterColors;
+        const nodeColor = firstCluster in clusterColors ? clusterColors[firstCluster] : '#000000';      
+        
+        bottom_top_graph.addNode(node, { 
+          label: node,
+          score: parsed_data[node].score,
+          categories: parsed_data[node].categories, 
+          clusters: parsed_data[node].clusters.join(', '),
+          tag: parsed_data[node].categories.join(', '),
+          x: Math.random(),  // Add an 'x' attribute
+          y: Math.random()   // Add a 'y' attribute 
+        });
+        console.log("we did it.");
+      }
+
+      const testSettings: Settings = {
+        labelSize: 14,
+        labelFont: 'Arial',
+        labelWeight: 'bold',
+        hideEdgesOnMove: false, 
+        hideLabelsOnMove: false,
+        renderLabels: true,
+        renderEdgeLabels: true,
+        defaultNodeColor: '#000000',  
+        defaultNodeType: 'circle',
+        defaultEdgeColor: '#000000',
+        defaultEdgeType: 'line',
+        edgeLabelFont: 'Arial',
+        edgeLabelSize: 12,
+        edgeLabelWeight: 'Arial',
+        stagePadding: 10,
+        labelDensity: 1,  
+        labelGridCellSize: 10, 
+        labelRenderedSizeThreshold: 8,
+        nodeReducer: null,
+        edgeReducer: null,
+        zIndex: true,
+        labelRenderer: drawLabel,
+        hoverRenderer: drawHover,
+        edgeLabelRenderer: drawEdgeLabel,
+        nodeProgramClasses: {},
+        edgeProgramClasses: {},
+        enableEdgeClickEvents: true,
+        enableEdgeWheelEvents: true,
+        enableEdgeHoverEvents: true,
+        labelColor: {
+          attribute: 'myAttribute',
+          color: '#000000', // optional
+        },
+        edgeLabelColor: {
+          attribute: 'myAttribute',
+          color: '#000000', // optional
+        },
+        zoomToSizeRatioFunction: (ratio: number) => ratio, // example function that returns the input ratio
+        itemSizesReference: 'screen', // use 'screen' or 'positions' as needed
+        minCameraRatio: null, // set to a number if needed 
+        maxCameraRatio: null, // set to a number if needed
+        allowInvalidContainer: false, // set to true if needed
+        nodeHoverProgramClasses: {}, // empty object for nodeHoverProgramClasses
+        // Set other properties as needed
+        // You can set them to their default values or any value suitable for your test
+      };
+
+      const nodeLabel = top_bottom_input.value; 
+      node_amount = bottom_top_amount_input.value;
+      let node_amount_num: number = parseFloat(node_amount);
+      console.log("continuing");
+  
+      //TODO: THIS NEEDS TO BE FIXED!!!!!!! WE ARE NOT RETURNING THE START NODE EVER WHEN IT IS NEGATIVE
+      // Find a node with a matching label
+      bt_selectedNode = bottom_top_graph
+        .nodes()
+        .find(
+          (node) =>
+          bottom_top_graph.getNodeAttribute(node, "label") === nodeLabel
+        );
+      if (bt_selectedNode) {
+        console.log("we found the node");
+        console.log("selected node: ", bt_selectedNode);
+
+        // Call the resetGraph function to reset the graph
+        resetGraph(bottom_top_graph);
+        bottom_top_graph.clearEdges();
+
+        const containerWidth = bottom_top_container.offsetWidth;
+        const containerHeight = bottom_top_container.offsetHeight;
+
+        bottom_top_graph.setNodeAttribute(bt_selectedNode, "x", -containerWidth / 2);
+        bottom_top_graph.setNodeAttribute(bt_selectedNode, "y", -containerHeight / 2);
+
+        // Set its size and color
+        bottom_top_graph.setNodeAttribute(bt_selectedNode, "size", 30);
+        bottom_top_graph.setNodeAttribute(bt_selectedNode, "color", "black");
+
+        bt_relationships = {};
+        for (const node of Object.keys(parsed_data)) {
+        bt_relationships[node] = parsed_data[node].score;
+        }
+
+        console.log("bt_relationships:", bt_relationships);
+
+        let maxRelationship = Math.max(...Object.values(bt_relationships));
+        const minRelationship = -0.09953586757183075;
+
+        // Check if maxRelationship is NaN
+        if (isNaN(maxRelationship)) {
+        // If so, set it to 1
+        maxRelationship = 1;
+        }
+
+        console.log("minimum: ", minRelationship);
+        console.log("maximum: ", maxRelationship);
+
+        //const colorScale = chroma.scale([ 'red', 'orange', 'yellow']).domain([minRelationship, maxRelationship]);
+        console.log("ok");
+        // Normalize the relationship values and use them to position the nodes
+        // Calculate the angle step for a full circle, used to evenly distribute weaknesses
+        const angleStep = 2 * Math.PI / Object.keys(bt_relationships).length;
+
+        console.log("parsed data: ", parsed_data);
+
+        console.log("bt_relationships:", bt_relationships);
+
+        for (const [node, relationship] of Object.entries(bt_relationships)) {
+          if (node !== bt_selectedNode) {
+            console.log("we are now normalizing.");
+          // Normalize the relationship value
+          const normalizedRelationship =
+            1 - (((relationship as number) - minRelationship) /
+            (maxRelationship - minRelationship)) - .15;
+
+          // Calculate the distance of the node from the selected node
+          const distance = normalizedRelationship * (containerWidth / 64);
+          console.log("distance: ", normalizedRelationship, "user_distance: ", node_amount_num);
+
+          if (normalizedRelationship <= node_amount_num)
+          {
+            bottom_top_graph.addEdge(bt_selectedNode, node); // add edges
+
+            // Calculate the angle for this node
+            const angle = angleStep * Object.keys(bt_relationships).indexOf(node) + Math.random() * 0.7; //still not a good way to go about this.
+
+            // Set the position of the nodes
+            bottom_top_graph.setNodeAttribute(
+              node,
+              "x",
+              -containerWidth / 2 + distance * Math.cos(angle)
+            );
+            bottom_top_graph.setNodeAttribute(
+              node,
+              "y",
+              -containerHeight / 2 + distance * Math.sin(angle)
+            );
+
+            console.log(parsed_data[node].clusters);
+            const firstCluster = parsed_data[node].clusters[0] as keyof typeof clusterColors;
+            console.log(`First cluster: ${firstCluster}`);
+            console.log(`Is key in clusterColors: ${firstCluster in clusterColors}`);
+
+            const nodeColor = firstCluster in clusterColors ? clusterColors[firstCluster] : '#000000';  // Default to black if the cluster is not in the mapping
+
+            // Convert the hex color to RGB
+            let rgbColor = hexToRgb(nodeColor);
+
+            // Define the opacity based on the normalizedRelationship
+            let opacity = 1 - 0.25 * normalizedRelationship;
+
+            // Convert the RGB color to RGBA
+            if (rgbColor) {
+              let rgbaColor = `rgba(${rgbColor.r}, ${rgbColor.g}, ${rgbColor.b}, ${opacity})`;
+              bottom_top_graph.setNodeAttribute(node, "color", rgbaColor);
+            } else {
+              console.error(`Invalid color: ${nodeColor}`);
+            }        
+                  
+            // Set the size of the node based on its normalized weight
+            const nodeSize = (1 - normalizedRelationship) * 25; // Adjust the multiplier as needed to get the desired range of sizes
+            bottom_top_graph.setNodeAttribute(node, "size", nodeSize);
+          }
+        }
+      }
+
+      console.log("Data set used: ", dataSelect.value);
+
+      // Check if the third container element was found
+      if (!bottom_top_container) {
+        console.log("Error: Could not find second container element on the page");
+      } else {
+        console.log("good");
+        // Check if a second Sigma instance already exists
+        if (bottom_top_renderer) {
+          console.log("perfect!!!!");
+          // Remove the existing Sigma instance
+          bottom_top_renderer.kill();
+          bottom_top_renderer = null;
+      }
+
+      // Create a new Sigma instance and render the graph in the third container
+      bottom_top_renderer = new Sigma(bottom_top_graph, bottom_top_container, testSettings);
+
+      if (bottom_top_renderer) {
+        (bottom_top_renderer).on('clickNode', function(e: any) {
+          // Get the clicked node's id
+          var nodeId = e.node;
+          console.log("Clicked on node with ID:", nodeId);
+          eventEmitter.emit('nodeClicked', nodeId);
+        });
+      }
+    }
+    }
+  }
+  });
+}
+
+function hexToRgb(hex: string) {
+  let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+  } : null;
+}
 
 
 

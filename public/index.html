@@ -7,7 +7,7 @@
     <title>Sigma Graph</title>
   </head>
   <style>
-    #single-node-container, #start-node-distance-container, #better-traversal-container, #updated-traversal-container {
+    #single-node-container, #start-node-distance-container, #better-traversal-container, #updated-traversal-container, #bottom-top-container {
       /* width: 1500px; */
       /* height: 800px; */
       width: 71%; /* Full width */
@@ -68,11 +68,12 @@
       <label for="mode-select">Choose a mode:</label>
       <select id="mode-select">
         <option value="">Select a mode...</option>
-        <option value="single-node">Single node</option>
+        <!--<option value="single-node">Single node</option> -->
         <!--<option value="start-end-nodes">Start and end nodes</option>-->
-        <option value="start-node-distance">Start node and distance</option>
-        <option value="better-traversal-visual">Better Version</option>
-        <option value="updated-traversal-visual">Updated Version</option>
+        <!--<option value="start-node-distance">Start node and distance</option>-->
+        <!--<option value="better-traversal-visual">Better Version</option>-->
+        <!--<option value="updated-traversal-visual">Updated Version</option>-->
+        <option value="top-bottom-traversal-visual">Top Bottom Version</option>
       </select>
       <label for="data-select">Choose the data to work with:</label>
       <select id="data-select">
@@ -149,8 +150,31 @@
         Enter a distance:
       </label>
       <input type="text" id="updated-distance-input"/>
+
       <div id="updated-traversal-container"></div>
       <canvas id="test-canvas" width="800" height="600"></canvas>
+    </div>
+
+    <div id="top-bottom-section" style="display: none;">
+      <label for="bottom-top-input">
+        Enter a Node of interest:
+      </label>
+      <input type="text" id="top-bottom-input"/>
+
+      <label for="bottom-top-number-of-nodes">
+        Enter amount of nodes to visualize:
+      </label>
+      <input type="text" id="bottom-top-number-input"/>
+
+      <label for="top-bottom-options">
+        Choose to show top or bottom related:
+      </label>
+      <select id="top-bottom-select">
+        <option value="Top">Top</option>
+        <option value="Bottom">Bottom</option>
+      </select>
+
+      <div id="bottom-top-container"></div>
     </div>
 
     <div id="root"></div>
