@@ -6,8 +6,10 @@
     "react": "./react.js",
     "react-animate-height": "./react-animate-height.js",
     "react-dom": "./react-dom.js",
+    "react-icons/ai": "./react-icons/ai.js",
     "react-icons/bs": "./react-icons/bs.js",
     "react-icons/md": "./react-icons/md.js",
-    "sigma": "./sigma.js"
+    "sigma": "./sigma.js",
+    "sigma/rendering/canvas/edge-label": "./sigma/rendering/canvas/edge-label.js"
   }
 }

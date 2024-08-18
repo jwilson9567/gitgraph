@@ -2,7 +2,7 @@ import React, {useState} from "../_snowpack/pkg/react.js";
 import {BsInfoCircle} from "../_snowpack/pkg/react-icons/bs.js";
 import Panel from "./Panel.js";
 const NearestNeighborTravDescriptionPanel = () => {
-  const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   return /* @__PURE__ */ React.createElement(Panel, {
     isDeployed: isPanelOpen,
     setIsDeployed: setIsPanelOpen,
